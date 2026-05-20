@@ -15,6 +15,7 @@ import { useAppSelector } from "@/features/store/hooks";
 import { selectAllTests } from "@/features/store/selectors";
 import { isTestStartable } from "@/features/tests/lib/isTestStartable";
 import { testTypeConfig } from "@/features/tests/lib/testTypeConfig";
+import { getAppUrl } from "@/lib/appUrl";
 import { createSession } from "@/lib/supabase/sessions";
 import { cn } from "@/lib/utils";
 
@@ -29,19 +30,6 @@ type CreatedSession = {
   testId: string;
   ownerName: string;
 };
-
-function getAppUrl(): string {
-  const fromEnv = process.env.NEXT_PUBLIC_APP_URL?.trim();
-  if (fromEnv) {
-    return fromEnv.replace(/\/$/, "");
-  }
-
-  if (typeof window !== "undefined") {
-    return window.location.origin;
-  }
-
-  return "";
-}
 
 async function copyToClipboard(text: string): Promise<void> {
   await navigator.clipboard.writeText(text);
