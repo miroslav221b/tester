@@ -2,12 +2,15 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { Plus } from "lucide-react";
-import { useCallback, useState } from "react";
+import { LayoutList, Plus } from "lucide-react";
+import { useCallback, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { QuestionModal } from "@/features/laboratory/components/questionModal";
-import { SequenceFlowCanvas } from "@/features/laboratory/components/sequenceFlowCanvas";
+import {
+  SequenceFlowCanvas,
+  type SequenceFlowCanvasHandle,
+} from "@/features/laboratory/components/sequenceFlowCanvas";
 import { useAppDispatch, useAppSelector } from "@/features/store/hooks";
 import { deleteQuestion } from "@/features/store/slices/questionsSlice";
 import {
@@ -23,6 +26,11 @@ export default function LaboratoryTestPage() {
   const test = useAppSelector(selectTestById(testId));
   const [editingQuestionId, setEditingQuestionId] = useState<string | undefined>();
   const [modalOpen, setModalOpen] = useState(false);
+  const sequenceCanvasRef = useRef<SequenceFlowCanvasHandle>(null);
+
+  const handleAutoLayout = useCallback(() => {
+    sequenceCanvasRef.current?.autoLayout();
+  }, []);
 
   const handleCreateQuestion = useCallback(() => {
     setEditingQuestionId(undefined);
@@ -74,6 +82,15 @@ export default function LaboratoryTestPage() {
           <p className="hidden text-xs text-muted-foreground sm:block">
             Start has one output · questions have W and R · changes save automatically
           </p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleAutoLayout}
+          >
+            <LayoutList className="size-4" />
+            Tidy layout
+          </Button>
           <Button type="button" size="sm" onClick={handleCreateQuestion}>
             <Plus className="size-4" />
             New question
@@ -88,6 +105,7 @@ export default function LaboratoryTestPage() {
 
       <div className="sequence-flow-editor relative min-h-0 flex-1">
         <SequenceFlowCanvas
+          ref={sequenceCanvasRef}
           testId={testId}
           onEditQuestion={handleEditQuestion}
           onDeleteQuestion={handleDeleteQuestion}

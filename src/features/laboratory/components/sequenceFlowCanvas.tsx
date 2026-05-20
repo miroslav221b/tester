@@ -10,6 +10,7 @@ import {
   ReactFlowProvider,
   useEdgesState,
   useNodesState,
+  useReactFlow,
   type Connection,
   type DefaultEdgeOptions,
   type Edge,
@@ -18,7 +19,16 @@ import {
   type NodeTypes,
   type ReactFlowInstance,
 } from "@xyflow/react";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 
 import { useSequenceEditor } from "@/features/store/hooks/sequenceEditor";
 import { useAppSelector } from "@/features/store/hooks";
@@ -29,6 +39,7 @@ import { FlowStartNode } from "./flowStartNode";
 import { QuestionNode } from "./questionNode";
 import { CONNECTION_LINE_COLOR, FLOW_START_HANDLE, FLOW_START_ID } from "../constants";
 import {
+  applyLayeredLayout,
   buildFlowEdges,
   buildFlowNodes,
   isValidFlowConnection,
@@ -60,6 +71,43 @@ type SequenceFlowCanvasProps = {
   onDeleteQuestion?: (questionId: string) => void;
 };
 
+export type SequenceFlowCanvasHandle = {
+  /** Run hierarchical top-to-bottom layout and fit view. */
+  autoLayout: () => void;
+};
+
+type SequenceFlowLayoutHandleProps = {
+  edges: Edge[];
+  setNodes: Dispatch<SetStateAction<Node[]>>;
+};
+
+const SequenceFlowLayoutHandle = forwardRef<
+  SequenceFlowCanvasHandle,
+  SequenceFlowLayoutHandleProps
+>(function SequenceFlowLayoutHandle({ edges, setNodes }, ref) {
+  const reactFlow = useReactFlow<Node, Edge>();
+  const edgesRef = useRef(edges);
+  edgesRef.current = edges;
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      autoLayout: () => {
+        setNodes((current) => {
+          const next = applyLayeredLayout(current, edgesRef.current);
+          requestAnimationFrame(() => {
+            reactFlow.fitView({ padding: 0.2 });
+          });
+          return next;
+        });
+      },
+    }),
+    [reactFlow, setNodes],
+  );
+
+  return null;
+});
+
 function edgesEqual(current: Edge[], next: Edge[]): boolean {
   if (current.length !== next.length) return false;
   const currentIds = new Set(current.map((edge) => edge.id));
@@ -69,11 +117,13 @@ function edgesEqual(current: Edge[], next: Edge[]): boolean {
   return true;
 }
 
-function SequenceFlowCanvasInner({
-  testId,
-  onEditQuestion,
-  onDeleteQuestion,
-}: SequenceFlowCanvasProps) {
+const SequenceFlowCanvasInner = forwardRef<
+  SequenceFlowCanvasHandle,
+  SequenceFlowCanvasProps
+>(function SequenceFlowCanvasInner(
+  { testId, onEditQuestion, onDeleteQuestion },
+  ref,
+) {
   const selectTest = useMemo(() => selectTestById(testId), [testId]);
   const selectQuestions = useMemo(
     () => selectQuestionsForTest(testId),
@@ -244,14 +294,22 @@ function SequenceFlowCanvasInner({
       <Background gap={16} size={1} />
       <Controls />
       <MiniMap pannable zoomable />
+      <SequenceFlowLayoutHandle
+        ref={ref}
+        edges={edges}
+        setNodes={setNodes}
+      />
     </ReactFlow>
   );
-}
+});
 
-export function SequenceFlowCanvas(props: SequenceFlowCanvasProps) {
+export const SequenceFlowCanvas = forwardRef<
+  SequenceFlowCanvasHandle,
+  SequenceFlowCanvasProps
+>(function SequenceFlowCanvas(props, ref) {
   return (
     <ReactFlowProvider>
-      <SequenceFlowCanvasInner {...props} />
+      <SequenceFlowCanvasInner ref={ref} {...props} />
     </ReactFlowProvider>
   );
-}
+});

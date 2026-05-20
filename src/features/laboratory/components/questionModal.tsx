@@ -29,6 +29,11 @@ import {
   SingleChoiceForm,
 } from "@/features/tests/components/question";
 import type { Question, QuestionType } from "@/features/tests/types/question";
+import {
+  getOrderQuestionAmbiguityError,
+  normalizeOrderCorrectOptions,
+  uniqueAscendingOrder,
+} from "@/features/tests/lib/orderQuestion";
 import { cn } from "@/lib/utils";
 
 const fieldClassName =
@@ -69,8 +74,9 @@ function normalizeCorrectOptionsForType(
     case "multiple":
       return filtered;
     case "order": {
-      // Preserve the author's sequence from correctOptions (preview drag order),
-      // then append any option indexes that were missing (e.g. newly added options).
+      const fromValues = uniqueAscendingOrder(options);
+      if (fromValues) return fromValues;
+
       const seen = new Set(filtered);
       const missingInOrder = options
         .map((o) => o.index)
@@ -89,6 +95,7 @@ function canSaveQuestion(question: Question): boolean {
   if (correct.length === 0) return false;
   if (question.type === "single") return correct.length === 1;
   if (question.type === "multiple") return correct.length >= 1;
+  if (getOrderQuestionAmbiguityError(question) !== null) return false;
   return correct.length === question.options.length;
 }
 
@@ -234,12 +241,16 @@ export function QuestionModal({
   };
 
   const handleOptionTextChange = (optionIndex: number, text: string) => {
-    updateDraft((current) => ({
-      ...current,
-      options: current.options.map((o) =>
+    updateDraft((current) => {
+      const options = current.options.map((o) =>
         o.index === optionIndex ? { ...o, text } : o,
-      ),
-    }));
+      );
+      const correctOptions =
+        current.type === "order"
+          ? (uniqueAscendingOrder(options) ?? current.correctOptions)
+          : current.correctOptions;
+      return { ...current, options, correctOptions };
+    });
   };
 
   const toggleCorrectOption = (optionIndex: number) => {
@@ -268,14 +279,21 @@ export function QuestionModal({
   const handleSave = () => {
     if (!canSaveQuestion(draft)) return;
 
+    const normalizedCorrect = normalizeCorrectOptionsForType(
+      draft.type,
+      draft.options,
+      draft.correctOptions,
+    );
     const payload: Question = {
       ...draft,
       text: draft.text.trim(),
-      correctOptions: normalizeCorrectOptionsForType(
-        draft.type,
-        draft.options,
-        draft.correctOptions,
-      ),
+      correctOptions:
+        draft.type === "order"
+          ? normalizeOrderCorrectOptions({
+              ...draft,
+              correctOptions: normalizedCorrect,
+            })
+          : normalizedCorrect,
     };
 
     if (isEdit) {
@@ -294,6 +312,8 @@ export function QuestionModal({
     return draft.correctOptions;
   }, [draft.correctOptions, draft.type]);
 
+  const orderAmbiguityError =
+    draft.type === "order" ? getOrderQuestionAmbiguityError(draft) : null;
   const saveDisabled = !canSaveQuestion(draft);
 
   return (
@@ -455,8 +475,11 @@ export function QuestionModal({
                   "Select one option as the correct answer."}
                 {draft.type === "multiple" && "Select all correct options."}
                 {draft.type === "order" &&
-                  "Drag options into the correct order."}
+                  "Варіанти мають мати різні числові значення — тоді існує лише одна правильна послідовність."}
               </p>
+              {orderAmbiguityError && (
+                <p className="text-xs text-destructive">{orderAmbiguityError}</p>
+              )}
               <div className="rounded-lg border border-border bg-muted/30 p-3">
                 {draft.options.length === 0 ? (
                   <p className="text-sm text-muted-foreground">

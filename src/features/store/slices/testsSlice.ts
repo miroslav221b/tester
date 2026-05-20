@@ -1,6 +1,5 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 
-import { sampleTests } from "@/features/tests/data/sampleTests";
 import {
   branchTargetsFromEntry,
   formatSequenceEntry,
@@ -21,7 +20,7 @@ export type TestsState = {
 };
 
 const initialState: TestsState = {
-  items: sampleTests,
+  items: [],
 };
 
 type SequenceEntry = SequenceScheme[string];

@@ -5,13 +5,25 @@ import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { TestPreview } from "@/features/components/testPreview";
-import { useAppSelector } from "@/features/store/hooks";
+import { useAppDispatch, useAppSelector } from "@/features/store/hooks";
+import {
+  replaceAllQuestions,
+} from "@/features/store/slices/questionsSlice";
+import { replaceAllTests } from "@/features/store/slices/testsSlice";
 import { selectAllTests } from "@/features/store/selectors";
+import { getDefaultTestsAndQuestions } from "@/features/tests/data/defaultUkMathGrade7";
 import { isTestStartable } from "@/features/tests/lib/isTestStartable";
 
 export default function TestsPage() {
   const router = useRouter();
+  const dispatch = useAppDispatch();
   const tests = useAppSelector(selectAllTests);
+
+  const restoreDefaultSettings = () => {
+    const { questions, tests: defaultTests } = getDefaultTestsAndQuestions();
+    dispatch(replaceAllQuestions(structuredClone(questions)));
+    dispatch(replaceAllTests(structuredClone(defaultTests)));
+  };
 
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 p-6 sm:p-8">
@@ -23,6 +35,9 @@ export default function TestsPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="secondary" onClick={restoreDefaultSettings}>
+            To default settings
+          </Button>
           <Link href="/share">
             <Button variant="outline">Share test</Button>
           </Link>
@@ -33,7 +48,9 @@ export default function TestsPage() {
       </div>
 
       {tests.length === 0 ? (
-        <p className="text-muted-foreground">No tests available yet.</p>
+        <p className="text-muted-foreground">
+          No tests available yet. Use &quot;To default settings&quot; above to load the built‑in Ukrainian grade‑7 math example.
+        </p>
       ) : (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(14rem,1fr))] gap-6">
           {tests.map((test) => {

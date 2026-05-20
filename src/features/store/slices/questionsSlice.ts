@@ -1,6 +1,5 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 
-import { sampleQuestions } from "@/features/tests/data/sampleQuestions";
 import type { Question, QuestionType } from "@/features/tests/types/question";
 
 export type QuestionsState = {
@@ -8,7 +7,7 @@ export type QuestionsState = {
 };
 
 const initialState: QuestionsState = {
-  items: sampleQuestions,
+  items: [],
 };
 
 type QuestionOption = Question["options"][number];
