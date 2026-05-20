@@ -1,6 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import {
+  DndContext,
+  type DragEndEvent,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { GripVertical } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -86,71 +102,102 @@ export type OrderFormProps = OptionsProps & {
   onChange?: (indexes: number[]) => void;
 };
 
-export function OrderForm({ options, value, onChange }: OrderFormProps) {
-  const order = value ?? options.map((o) => o.index);
-  const optionByIndex = new Map(options.map((o) => [o.index, o]));
-  const [draggedPosition, setDraggedPosition] = useState<number | null>(null);
-  const [overPosition, setOverPosition] = useState<number | null>(null);
+function SortableOrderRow({
+  optionIndex,
+  text,
+}: {
+  optionIndex: number;
+  text: string;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: optionIndex });
 
-  const reorder = (from: number, to: number) => {
-    if (from === to) return;
-    const next = [...order];
-    const [item] = next.splice(from, 1);
-    next.splice(to, 0, item);
-    onChange?.(next);
-  };
-
-  const resetDragState = () => {
-    setDraggedPosition(null);
-    setOverPosition(null);
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
   };
 
   return (
-    <ul className="flex flex-col gap-1">
-      {order.map((index, position) => {
-        const option = optionByIndex.get(index);
-        if (!option) return null;
+    <li
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        optionRowClassName,
+        isDragging && "z-10 opacity-90 shadow-md",
+      )}
+    >
+      <button
+        type="button"
+        className={cn(
+          "touch-none -m-1 shrink-0 rounded-sm p-1 text-muted-foreground",
+          "cursor-grab active:cursor-grabbing",
+          "hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        )}
+        aria-label="Drag to reorder"
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical className="size-3.5" aria-hidden />
+      </button>
+      <span className="min-w-0 flex-1">{text}</span>
+    </li>
+  );
+}
 
-        const isDragging = draggedPosition === position;
-        const isOver = overPosition === position && draggedPosition !== position;
+export function OrderForm({ options, value, onChange }: OrderFormProps) {
+  const order = value ?? options.map((o) => o.index);
+  const optionByIndex = new Map(options.map((o) => [o.index, o]));
 
-        return (
-          <li
-            key={index}
-            draggable
-            onDragStart={() => setDraggedPosition(position)}
-            onDragOver={(e) => {
-              e.preventDefault();
-              setOverPosition(position);
-            }}
-            onDragLeave={() => {
-              setOverPosition((current) =>
-                current === position ? null : current,
-              );
-            }}
-            onDrop={(e) => {
-              e.preventDefault();
-              if (draggedPosition !== null) {
-                reorder(draggedPosition, position);
-              }
-              resetDragState();
-            }}
-            onDragEnd={resetDragState}
-            className={cn(
-              optionRowClassName,
-              "cursor-grab transition-colors select-none active:cursor-grabbing",
-              isDragging && "opacity-50",
-              isOver && "border-primary bg-muted/50",
-            )}
-          >
-            <GripVertical
-              className="size-3.5 shrink-0 text-muted-foreground"
-              aria-hidden
-            />
-            <span className="min-w-0 flex-1">{option.text}</span>
-          </li>
-        );
-      })}
-    </ul>
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const activeOptionIndex = Number(active.id);
+    const overOptionIndex = Number(over.id);
+    const oldPosition = order.indexOf(activeOptionIndex);
+    const newPosition = order.indexOf(overOptionIndex);
+    if (oldPosition === -1 || newPosition === -1) return;
+
+    onChange?.(arrayMove(order, oldPosition, newPosition));
+  };
+
+  return (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragEnd={handleDragEnd}
+    >
+      <SortableContext items={order} strategy={verticalListSortingStrategy}>
+        <ul className="flex flex-col gap-1">
+          {order.map((index) => {
+            const option = optionByIndex.get(index);
+            if (!option) return null;
+
+            return (
+              <SortableOrderRow
+                key={index}
+                optionIndex={index}
+                text={option.text}
+              />
+            );
+          })}
+        </ul>
+      </SortableContext>
+    </DndContext>
   );
 }

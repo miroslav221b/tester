@@ -83,7 +83,7 @@ function getFirstQuestionId(test: Test): string | null {
   return getFlowStartQuestionId(test);
 }
 
-function getNextQuestionId(
+export function getNextQuestionId(
   test: Test,
   questionId: string,
   isCorrect: boolean,
@@ -99,7 +99,7 @@ function getNextQuestionId(
   return resolveSequenceTarget(test, entry);
 }
 
-function resolveCurrentQuestionId(
+export function resolveCurrentQuestionId(
   test: Test,
   trace: TestTrace,
   questions: Question[],

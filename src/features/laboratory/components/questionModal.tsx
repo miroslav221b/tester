@@ -68,8 +68,15 @@ function normalizeCorrectOptionsForType(
       return filtered.length > 0 ? [filtered[0]] : [];
     case "multiple":
       return filtered;
-    case "order":
-      return options.map((o) => o.index);
+    case "order": {
+      // Preserve the author's sequence from correctOptions (preview drag order),
+      // then append any option indexes that were missing (e.g. newly added options).
+      const seen = new Set(filtered);
+      const missingInOrder = options
+        .map((o) => o.index)
+        .filter((i) => !seen.has(i));
+      return [...filtered, ...missingInOrder];
+    }
   }
 }
 
@@ -200,7 +207,7 @@ export function QuestionModal({
       const options = [...current.options, { index, text }];
       const correctOptions =
         current.type === "order"
-          ? options.map((o) => o.index)
+          ? [...current.correctOptions, index]
           : current.correctOptions;
 
       return { ...current, options, correctOptions };
